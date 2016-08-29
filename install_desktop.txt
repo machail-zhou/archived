@@ -1,0 +1,26 @@
+1 KDE桌面
+  安装： apt-get install kali-defaults kali-root-login desktop-base kde-plasma-desktop
+  卸载： apt-get remove kde-plasma-desktop
+2 KDE上网本桌面
+  安装：apt-get install kali-defaults kali-root-login desktop-base kde-plasma-netbook
+  卸载：apt-get remove  kde-plasma-netbook
+3 KDE标准版
+  安装： apt-get install kali-defaults kali-root-login desktop-base kde-standard  卸载： apt-get remove kde-standard
+4 KDE标准版
+  安装： apt-get install kali-defaults kali-root-login desktop-base kde-full
+  卸载： apt-get remove  kde-full
+5 XFCE桌面
+  安装： apt-get install kali-defaults kali-root-login desktop-base xfce4 xfce4-places-plugin xfce4-goodies
+  卸载：apt-get remove xfce4 xfce4-places-plugin xfce4-goodies
+6.LXDE桌面
+  安装：apt-get install lxde-core lxde kali-defaults kali-root-login desktop-base
+  卸载：apt-get remove lxde-core
+
+7.Cinnamon桌面
+ 安装：apt-get install kali-defaults kali-root-login desktop-base cinnamon
+ 卸载：apt-get remove cinnamon
+
+来源：http://www.52os.net/articles/kail-change-desktop-environment.html
+
+切换默认的桌面环境
+update-alternatives --config x-session-manager
