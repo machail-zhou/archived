@@ -1,0 +1,67 @@
+1. django tutorial
+获取django的版本:    python -m django --version
+2.新建一个工程：   django-admin startproject mysite  
+	不要用django test命名，防止冲突
+	mysite主目录只是个工程容器，可以任意命名
+	manage.py  一个命令行组件，让你可以通过不同方式与django交互
+	里面的mysite是一个python的工程包
+	__init__.py 空文件，表示这个目录被认为是个python包
+	setting.py 配置django工程文件
+	url.py  django工程的url声明
+	wsgi.py  WSGI兼容
+3.运行命令 python manage.py runserver  可以看到django运行起来
+  改变端口 python manage.py runserver 8080
+  如果想让服务在网上被访问  python manage.py runserver 0.0.0.0:8080
+  开发服务器自动加载python代码，不需要重启生效
+
+4.建立polls应用
+  app和project的区别  app像博客系统，公共记录数据库或者投票系统，project是配置和多个网站功能应用的集合，一个project可以包含多个app，一个app可以在多个project出现。
+   python manage.py startapp polls
+
+5.写第一个视图文件
+ #polls/views.py
+ from django.http import HttpResponse
+ def inde(request):
+     retrun HttpResponse("hello,world. You are at the polls index.")
+这是django中最简单的视图，调用这个视图，需要映射到一个url上去，我们需要一个URLconf文件，在polls的目录下建立一个叫urls.py的文件。
+ #polls/urls.py
+ from django.conf.urls import url
+ from . import views
+ urlpatterns = [
+     url(r'^$',view.index,name='index'),
+ ]
+下一步是吧主目录的URLconf配置文件指向polls.urls模块
+#mysite/urls.py
+from django.conf.urls import include,url
+from diango.contrib import admin
+urlpatterns = [
+    url(r'^polls/', include('polls.urls')),
+    url(r'^admin/', admin.site.urls),
+  ]
+include()函数可以关联别的URLconf配置文件
+
+启动python manage.py runserver 在浏览器中看到“hello,world, You are at the pollers index”
+
+6.建立数据库
+#/mysite/settings.py
+ENGINE  django.db.backends.sqlite3或者django.db.backends.postgresql 或者django.db.backends.mysql 或者 django.db.backends.oracle看自己用的数据库引擎
+NAME    数据库名字，如果使用SQLite，数据库是一个文件，名字用绝对路径，包括文件名，默认是os.path.join(BASE_DIR,'db.sqlite3')
+如果是使用其他的数据库，先得建库，CREATE DATABASE database_name;并确保所使用用户有权限建库。sqlite就不需要建库，都会自动建库。
+TIME_ZONE设置时区
+INSTALLED_APPS默认包含下面几个
+django.contrib.admin   admin地址
+django.contrib.auth   授权系统
+django.contrib.contenttypes  类容类型框架
+django.contrib.sessions     session框架
+django.contrib.messages     消息框架
+django.contrib.staticfiles   管理静态文件的框架
+这些框架会用到至少一个表，所以先得建表，语句如下：
+python  manage.py migrate
+
+7.建立自己的models
+模型是一个单一，可定义的真实的数据源，包括基本的源和存储数据的操作
+django遵循DRY原则，目的就是一处定义模型并自动从模型中采集数据。
+在投票的应用中，建立两个模型，Question 和 Choice，一个问题有问题内容和发表日期，一个选项有两个列，选项内容和计数器，每一个选线都是与问题关联。
+#polls/models.py
+每一个模型都是django.db.models.Model的子类，每个模型都有个类变量，代表这个模型的数据库字段。
+每个字段都死Field类的实例，像CharField是字符，DateTimeField是表示日期
