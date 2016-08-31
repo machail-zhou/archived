@@ -65,3 +65,198 @@ django遵循DRY原则，目的就是一处定义模型并自动从模型中采�
 #polls/models.py
 每一个模型都是django.db.models.Model的子类，每个模型都有个类变量，代表这个模型的数据库字段。
 每个字段都死Field类的实例，像CharField是字符，DateTimeField是表示日期
+实例的名字就是字段的名字，这个名字在数据库中就是列名
+from django.db import models
+
+class Question(models.Model):
+    question_text = models.CharField(max_length=200)
+    put_date = models.DateTimeField('date publish')
+
+class Choice(models.Model):
+    question = models.ForeignKey(Question,on_delete=models.CASCADE)
+    choice_text = models.CharField(max_length=200)
+    votes = models.IntegerField(default=0)
+
+8.激活models
+上面这一段model代码给了django很多信息，django可以用它来做：
+ a.为应用建立数据库（建表）
+ b.建立python数据库访问接口访问Question和Choice这两个对象
+但是首先我们得告诉工程polls这个应用已经安装了
+编辑mysite/setting INSTALLED_APPS加入 'polls.apps.PollsConfig',现在django知道include投票应用了，执行  python  manage.py makemigrations polls
+执行这个命令，告诉django你已经改变了模型，你想做个迁移。
+查看迁移模型时使用的SQL语句：python manage.py sqlmigrate polls 0001
+检查是否有问题：python  manage.py check
+再次执行迁移命令，在数据库中建表：python manage.py migrate
+
+总的来说就三步：
+  1)改变模型  model.py
+  2)执行python manage.py makemigrations 生成迁移内容
+  3)执行python manage.py migrate 应用迁移内容到数据库
+
+9.玩玩API
+借助python shell：python manage.py shell或者直接打python，因为manage.py设置了DJANGO_SETTINGS_MODULE作为环境变量了。ps:
+ import django
+ django.setup() 如果出现AttributeError,说明Django的版本与体验教程不符合，可以更换老的版本或更新django的版本到最新的。
+ 当进入shell，就开始探索database API了：
+from polls.model import Question,Choice #引入我们写的model类
+Question.objects.all()   #系统中还没有问题
+#新建一个问题，默认的setting文件中支持时区的设置，所以Django希望有个日期提供给pub_date字段，使用timezone.now(),而不是datetime.datetime.now().
+from django.utils import timezone
+q=Question(question_text="what's new?",put_date=timezone.now()
+#保持这个对象到数据库中，使用save方法
+q.save()
+#现在他有id了，注意这个id可能是“1L”，而不是“1”，主要看你使用的数据库，这不是什么大不了的事情，只是表示你数据库后端更喜欢返回整数为python的长整形数据。
+q.id
+#通过python属性获取model字段
+q.question_text
+q.put_date
+#通过改变属性来改变字段值，然后调用save方法保存
+q.question_text="What's up?"
+q.save()
+
+#显示数据库中所有问题
+Question.objects.all()
+<QuerySet [<Question: Question object>]>
+
+这么显示不是我们想要的，我们来改变polls/models.py这个文件，在Question和Choice类上加上__str__()方法
+
+#poll/models.py
+
+from django.db import models
+from django.utils.encoding import python_2unicode_compatible
+
+@python_2_unicode_compatible #支持python2
+class Question(model.Model):
+    #...
+    def __str__(self):
+        return self.question_text
+
+@python_2_unicode_compatible
+class Choice(models.Model):
+    #...
+    def __str__(self):
+        return  self.choice_text
+
+#加入__str__()方法很重要，不仅方便交互提示，而且贯穿整个django自动生成管理都使用对象表示
+
+#polls/models.py
+
+import datetime
+
+from django.db import models
+
+from django.utils import timezone
+
+class Question(models.Model):
+    #...
+    def was_published_recently(self):
+        return self.put_date >= timezone.now() - datetime.timedelta(days=1)
+
+#注意这里用到标准的datetime模块和django的时区相关的组件django.utils.timezone
+https://docs.djangoproject.com/en/1.10/topics/i18n/timezones/
+进入python shell
+
+from polls.models import Question,Choice
+
+Question.objects.all()
+<QuerySet [<Question: What's up?>]>
+
+#django 提供丰富的数据库查询API，使用关键词参数查询
+
+Question.objects.filter(id=1)
+<QuerySet [<Question: What's up?>]>
+
+Question.objects.filter(question_text_startswith = 'what')
+<QuerySet [<Question: What's up?>]>
+
+#获取今年发布的question
+from django.utils import timezone
+current_year = timezone.now().year
+Question.objects.get(put_date__year=current_year)
+
+
+#请求ID不存在，将出发异常
+Question.object.get(id=2)
+Traceback (most recent call last):
+    ...
+DoesNotExist: Question matching query does not exist.
+
+#查询主键是经常的事，所有django提供准确查询主键的捷径
+Question.objects.get(pk=1)
+<Question: What's up?>
+
+#确认自定义was_published_recently方法有效
+q=Question.objects.get(pk=1)
+q.was_pulished_recently
+
+#给问题一些答案选项，调用结构是Choice对象,做INSERT表述，添加选项到可选选项的集合并且返回新的选项对象。django建立一个集合通过API来处理外键关系的另一面
+
+q=Question.objects.get(pk=1)
+
+#从相关的对象集合中显示所有选项，目前是none
+
+q.choice_set.all()
+<QuerySet []>
+
+#新建三个选项
+q.choice_set.create(choice_text='Not much',votes=0)
+
+q.choice_set.create(choice_text='The sky',votes=0)
+
+c=q.choice_set.create(choice_text='Just hacking again',votes=0)
+
+#选项对象通过API访问相关的问题对象
+c.question
+<Question: What's up?>
+
+#反之亦然，问题对象可以访问选项对象
+q.choice_set.all()
+<QuerySet [<Choice: Not much>, <Choice: The sky>, <Choice: Just hacking again>]>
+q.choice_set.count()
+3
+
+#API自动按需跟踪关系，使用双下划线分割关系，不管多少层关系，都没限制，找到所pub_date是今年的question对应的choice
+Choice.objects.filter(question__pub_date_year=current_year)
+<QuerySet [<Choice: Not much>, <Choice: The sky>, <Choice: Just hacking again>]>
+
+#删除一个choice，使用delete()
+c=q.choice_set.filter(choice_text__startswith='Just hacking')
+c.delete()
+
+#模型关系参考 https://docs.djangoproject.com/en/1.10/ref/models/relations/
+#通过API怎么使用双下划线查询字段，可以参考 https://docs.djangoproject.com/en/1.10/topics/db/queries/#field-lookups-intro
+#更多数据库API https://docs.djangoproject.com/en/1.10/topics/db/queries/
+
+
+10.Django Admin
+为员工或客服新增，改变，删除管理界面是一件繁琐的事情，而且不需要什么创新，正因为如此，django自动为模型生成管理接口。
+Django本身是为新闻编辑室所写，在内容发布者和公共地址之间有清晰的划分，网站管理者使用系统添加故事，事件，体育赛事，等等，并且内容发布到公共网址上，django解决了为网站管理者管理内容的统一接口的问题。amdin不是为访问者用的，而是为管理者。
+
+#建立amdin账号
+python manage.py createsuperuser
+输入用户名，email，密码
+
+
+#启动开发服务
+python manage.py runserver
+
+
+#让poll应用在admin中可以变更
+poll应用还没出现在admin主页上，编辑polls/admin.py
+
+from django.contrib import admin
+
+from .model import Question 
+
+admin.site.register(Question)
+
+#探索admin功能
+
+现在我们注册了Question,poll出现在admin页面上，点击“Question”，现在到了changlist页面，这个页面显示数据库中所有问题，选择一个改变他，有一个我们之前建的“what's up?”
+
+#注意
+ 1）表格自动从Question模型中生成
+ 2）不同的模型字段类型符合适合的HTML输入窗口，每一种类型的字段知道如何显示在Django admin
+ 3）每一个DateTimeField有免费javaScript快捷图标。
+
+
